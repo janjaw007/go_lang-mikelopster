@@ -10,6 +10,7 @@ services:
       POSTGRES_PASSWORD: mypassword
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups # Mounts your local backups directory to /backups in the container
     ports:
       - "5432:5432"
     restart: unless-stopped
