@@ -14,3 +14,7 @@
 # IDE/editor specific files
 .idea/
 .vscode/
+
+
+.env
+backups/

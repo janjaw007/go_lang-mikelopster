@@ -32,7 +32,8 @@ To back up the PostgreSQL database to a `backup.sql` file, run the following com
 1. **Backup the database**:
 
    ```bash
-   docker exec -t postgres pg_dump --clean -U myuser mydatabase > backup.sql
+   docker exec postgres pg_dump -U myuser --clean mydatabase > ./backups/backup.sql
+
    ```
 
    This command will:
@@ -40,7 +41,13 @@ To back up the PostgreSQL database to a `backup.sql` file, run the following com
    - Drop existing objects (tables, schemas) before creating them.
    - Back up the `mydatabase` database.
 
-2. **Commit and push the updated backup**:
+2. **Stopping Containters**:
+
+   ```bash
+   docker-compose stop
+   ```
+
+3. **Commit and push the updated backup**:
    After running the backup command, you can commit and push the updated `backup.sql` to Git:
 
    ```bash
@@ -57,16 +64,25 @@ To restore the backup from the `backup.sql` file, follow these steps:
    Before restoring the database, you need to ensure that the `backup.sql` file is accessible by the PostgreSQL container. Use the following `docker cp` command to copy the `backup.sql` file into the container:
 
    ```bash
-   docker cp backup.sql postgres:/backup.sql
+   docker cp ./backups/backup.sql postgres:/backup.sql
+
    ```
 
    This command will copy the `backup.sql` file from your local machine into the PostgreSQL container (named `postgres`). The file will be placed at the root directory of the container.
 
-2. **Restore the database**:
+2. **Make sure that the mydatabase database exists before running the restore command. If it doesn't exist, you will need to create it first:**
+
+   ```bash
+   docker exec -it postgres psql -U myuser -c "CREATE DATABASE mydatabase;"
+
+
+   ```
+
+3. **Restore the database**:
    After copying the `backup.sql` file into the container, you can restore the database by running the following command:
 
    ```bash
-   docker exec -i postgres psql -U myuser -d mydatabase -f /backup.sql
+   docker exec -i postgres psql -U myuser -d mydatabase -f /backups/backup.sql
    ```
 
    This command will:
