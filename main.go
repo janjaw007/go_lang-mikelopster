@@ -26,9 +26,8 @@ type Product struct {
 
 func main() {
 
-psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-	host, port, user, password, dbname)
-
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
 
 	sdb, err := sql.Open("postgres", psqlInfo)
 
@@ -47,17 +46,33 @@ psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=d
 	fmt.Println("Connection Database Successful")
 
 	// ##### SELECT
-	product, err := getProduct(3)
+	// product, err := getProduct(2)
 
-	fmt.Println("Get Successful!", product)
+	// fmt.Println("Get Successful!", product)
 
 	// ##### Create
-	// err = createProduct(&Product{Name: "Go product 2", Price: 444})
+	// err := createProduct(&Product{Name: "Go product 2", Price: 444})
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 
 	// fmt.Println("Create Successful")
+
+	// ##### Update
+	// product, err := updateProduct(1, &Product{Name: "UpdateTestProduct1", Price: 124})
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println("Update Successful", product)
+
+	// ##### Delete
+	product, err := deleteProduct(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Delete Successful", product)
 
 }
 
@@ -72,7 +87,7 @@ func createProduct(product *Product) error {
 
 func getProduct(id int) (Product, error) {
 	var p Product
-	row := db.QueryRow("SELECT id, name, price FROM products where id=$1;",id)
+	row := db.QueryRow("SELECT id, name, price FROM products where id=$1;", id)
 
 	err := row.Scan(&p.ID, &p.Name, &p.Price)
 
@@ -81,4 +96,36 @@ func getProduct(id int) (Product, error) {
 	}
 
 	return p, nil
+}
+
+func updateProduct(id int, product *Product) (Product, error) {
+	var p Product
+
+	row := db.QueryRow(
+		"UPDATE public.products SET name=$1, price=$2 WHERE id = $3 RETURNING id, name, price;",
+		product.Name,
+		product.Price,
+		id,
+	)
+
+	err := row.Scan(&p.ID, &p.Name, &p.Price)
+
+	if err != nil {
+		return Product{}, err
+	}
+
+	return p, err
+}
+
+func deleteProduct(id int) (Product, error) {
+	var p Product
+
+	row := db.QueryRow("DELETE FROM public.products WHERE id = $1 RETURNING id, name, price;", id)
+
+	err := row.Scan(&p.ID, &p.Name, &p.Price)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return p, err
 }
