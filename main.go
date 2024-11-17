@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 
+	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 )
 
@@ -19,9 +21,16 @@ const (
 var db *sql.DB
 
 type Product struct {
-	ID    int
-	Name  string
-	Price int
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Price int    `json:"price"`
+}
+
+type ProductWithSupplier struct {
+	ProductID    int
+	ProductName  string
+	ProductPrice int
+	SupplierName string
 }
 
 func main() {
@@ -37,95 +46,95 @@ func main() {
 
 	db = sdb
 
+	defer db.Close()
+
 	err = db.Ping()
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Connection Database Successful
-	fmt.Println("Connection Database Successful")
 
-	// ##### SELECT
-	// product, err := getProduct(2)
+	app := fiber.New()
 
-	// fmt.Println("Get Successful!", product)
+	app.Get("/product/:id", getProductHandler)
+	app.Get("/products", getProductsHandler)
+	app.Post("/product", createProductHandler)
+	app.Put("/product/:id", updateProductHandler)
+	app.Delete("/product/:id", deleteProductHandler)
 
-	// ##### Create
-	// err := createProduct(&Product{Name: "Go product 2", Price: 444})
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println("Create Successful")
-
-	// ##### Update
-	// product, err := updateProduct(1, &Product{Name: "UpdateTestProduct1", Price: 124})
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println("Update Successful", product)
-
-	// ##### Delete
-	product, err := deleteProduct(1)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Delete Successful", product)
+	app.Listen(":8080")
 
 }
 
-func createProduct(product *Product) error {
-	_, err := db.Exec(
-		"INSERT INTO public.products(name, price) VALUES ($1, $2);",
-		product.Name,
-		product.Price,
-	)
-	return err
-}
-
-func getProduct(id int) (Product, error) {
-	var p Product
-	row := db.QueryRow("SELECT id, name, price FROM products where id=$1;", id)
-
-	err := row.Scan(&p.ID, &p.Name, &p.Price)
-
+func getProductHandler(c *fiber.Ctx) error {
+	productId, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		return Product{}, err
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	product, err := getProduct(productId)
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	return p, nil
+	return c.JSON(product)
 }
 
-func updateProduct(id int, product *Product) (Product, error) {
-	var p Product
-
-	row := db.QueryRow(
-		"UPDATE public.products SET name=$1, price=$2 WHERE id = $3 RETURNING id, name, price;",
-		product.Name,
-		product.Price,
-		id,
-	)
-
-	err := row.Scan(&p.ID, &p.Name, &p.Price)
-
+func getProductsHandler(c *fiber.Ctx) error {
+	product, err := getProducts()
 	if err != nil {
-		return Product{}, err
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	return p, err
+	return c.JSON(product)
 }
 
-func deleteProduct(id int) (Product, error) {
-	var p Product
-
-	row := db.QueryRow("DELETE FROM public.products WHERE id = $1 RETURNING id, name, price;", id)
-
-	err := row.Scan(&p.ID, &p.Name, &p.Price)
-	if err != nil {
-		return Product{}, err
+func createProductHandler(c *fiber.Ctx) error {
+	p := new(Product)
+	if err := c.BodyParser(p); err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	return p, err
+	err := createProduct(p)
+
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	return c.JSON(p)
+}
+
+func updateProductHandler(c *fiber.Ctx) error {
+	// recived argument
+	productId, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	// create body json fro request instance
+	p := new(Product)
+	if err := c.BodyParser(p); err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	// update product
+	product, err := updateProduct(productId, p)
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	return c.JSON(product)
+}
+
+func deleteProductHandler(c *fiber.Ctx) error {
+	// recived argument
+	productId, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	// update product
+	product, err := deleteProduct(productId)
+	if err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	return c.JSON(product)
 }
